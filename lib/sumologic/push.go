@@ -17,11 +17,24 @@ type Uploader interface {
 	Send([]byte, string) error
 }
 
+type UploaderWithCustomHeaders interface {
+	SendWithHeaders([]byte, string,HeaderSet) error
+}
+
 // httpUploader is a reusable object to upload data to a single
 // Sumologic HTTP collector.
 type httpUploader struct {
 	url       string
 	multiline bool
+	HeaderSet
+}
+
+type HeaderSet struct {
+	Headers map[string]string
+}
+
+func (u *httpUploader) setHeaders(h HeaderSet)  {
+	u.HeaderSet = h
 }
 
 // NewUploader creates a new uploader.
@@ -31,9 +44,89 @@ func NewUploader(url string) Uploader {
 	return u
 }
 
+// NewUploader creates a new uploader.
+func NewUploaderWithHeaders(url string) UploaderWithCustomHeaders {
+	u := new(httpUploader)
+	u.url = url
+	return u
+}
+
 // Send sends a message to a Sumologic HTTP collector.  It will
 // automatically compress messages larger than GzipThreshold.  Optionally,
 // a name will be specified, if so this will be added as metadata.
+//func (u *httpUploader) Send(input []byte, name string) (err error) {
+//	// nil input is a noop
+//	if input == nil {
+//		return
+//	}
+//
+//	client := new(http.Client)
+//	buf := new(bytes.Buffer)
+//
+//	req := new(http.Request)
+//
+//	req.Close = true
+//	client.Timeout = 60 * time.Second
+//
+//	if len(input) > GzipThreshold {
+//		log.Printf("Data over threshold, compressing (%s bytes)", len(input))
+//		w := gzip.NewWriter(buf)
+//		n, err := w.Write(input)
+//		if err != nil {
+//			return err
+//		}
+//		if n != len(input) {
+//			return errors.New("error compressing data")
+//		}
+//		err = w.Close()
+//		if err != nil {
+//			return err
+//		}
+//
+//		req, err = http.NewRequest("POST", u.url, buf)
+//		if err != nil {
+//			return err
+//		}
+//
+//		req.Header.Set("Content-Encoding", "gzip")
+//	} else {
+//		n, err := buf.Write(input)
+//		if err != nil {
+//			return err
+//		}
+//		if n != len(input) {
+//			return errors.New("error sending data")
+//		}
+//
+//		req, err = http.NewRequest("POST", u.url, buf)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//
+//	if name != "" {
+//		req.Header.Set("X-Sumo-Name", name)
+//	}
+//
+//	resp, err := client.Do(req)
+//	if err != nil {
+//		return
+//	}
+//
+//	//log.Printf("Response: %s", resp.Status)
+//
+//	if resp.StatusCode != 200 {
+//		return errors.New(resp.Status)
+//	}
+//
+//	return nil
+//}
+
+func (u *httpUploader) SendWithHeaders(input []byte,name string,headers HeaderSet) error {
+	u.setHeaders(headers)
+	return u.Send(input,name)
+}
+
 func (u *httpUploader) Send(input []byte, name string) (err error) {
 	// nil input is a noop
 	if input == nil {
@@ -49,7 +142,7 @@ func (u *httpUploader) Send(input []byte, name string) (err error) {
 	client.Timeout = 60 * time.Second
 
 	if len(input) > GzipThreshold {
-		log.Printf("Data over threshold, compressing (%s bytes)", len(input))
+		log.Printf("Data over threshold, compressing (%v bytes)", len(input))
 		w := gzip.NewWriter(buf)
 		n, err := w.Write(input)
 		if err != nil {
@@ -84,8 +177,8 @@ func (u *httpUploader) Send(input []byte, name string) (err error) {
 		}
 	}
 
-	if name != "" {
-		req.Header.Set("X-Sumo-Name", name)
+	for key, value := range u.Headers {
+		req.Header.Set(key,value)
 	}
 
 	resp, err := client.Do(req)
