@@ -6,47 +6,11 @@ import (
 	"strings"
 	"strconv"
 	"os"
+	"fmt"
+	"log"
+	"sync"
+	"time"
 )
-
-type serverInstance struct {
-	Actions []struct {
-		Rel string `json:"rel"`
-	} `json:"actions"`
-	AssociatePublicIPAddress bool `json:"associate_public_ip_address"`
-	CloudSpecificAttributes struct {
-		AutomaticInstanceStoreMapping bool   `json:"automatic_instance_store_mapping"`
-		EbsOptimized                  bool   `json:"ebs_optimized"`
-		IamInstanceProfile            string `json:"iam_instance_profile"`
-		PlacementTenancy              string `json:"placement_tenancy"`
-	} `json:"cloud_specific_attributes"`
-	CreatedAt           string        `json:"created_at"`
-	IPForwardingEnabled bool          `json:"ip_forwarding_enabled"`
-	Links               rsLinks       `json:"links"`
-	Locked              bool          `json:"locked"`
-	Name                string        `json:"name"`
-	PricingType         string        `json:"pricing_type"`
-	PrivateIPAddresses  []interface{} `json:"private_ip_addresses"`
-	PublicIPAddresses   []interface{} `json:"public_ip_addresses"`
-	ResourceUID         string        `json:"resource_uid"`
-	State               string        `json:"state"`
-	UpdatedAt           string        `json:"updated_at"`
-}
-
-type rawTagList struct {
-	Links rsLinks `json:"links"`
-	Tags []struct {
-		Name string `json:"name"`
-	} `json:"tags"`
-}
-
-type rawTagListSlice []rawTagList
-
-type rsLink struct {
-	Href string `json:"href"`
-	Rel  string `json:"rel"`
-}
-
-type rsLinks []rsLink
 
 type ServerArray struct {
 	Actions []struct {
@@ -86,6 +50,48 @@ type ServerArray struct {
 
 type ServerArrays []ServerArray
 
+type serverInstance struct {
+	Actions []struct {
+		Rel string `json:"rel"`
+	} `json:"actions"`
+	AssociatePublicIPAddress bool `json:"associate_public_ip_address"`
+	CloudSpecificAttributes struct {
+		AutomaticInstanceStoreMapping bool   `json:"automatic_instance_store_mapping"`
+		EbsOptimized                  bool   `json:"ebs_optimized"`
+		IamInstanceProfile            string `json:"iam_instance_profile"`
+		PlacementTenancy              string `json:"placement_tenancy"`
+	} `json:"cloud_specific_attributes"`
+	CreatedAt           string   `json:"created_at"`
+	IPForwardingEnabled bool     `json:"ip_forwarding_enabled"`
+	Links               rsLinks  `json:"links"`
+	Locked              bool     `json:"locked"`
+	Name                string   `json:"name"`
+	PricingType         string   `json:"pricing_type"`
+	PrivateIPAddresses  []string `json:"private_ip_addresses"`
+	PublicIPAddresses   []string `json:"public_ip_addresses"`
+	ResourceUID         string   `json:"resource_uid"`
+	State               string   `json:"state"`
+	UpdatedAt           string   `json:"updated_at"`
+}
+
+type ServerInstances []serverInstance
+
+type rawTagList struct {
+	Links rsLinks `json:"links"`
+	Tags []struct {
+		Name string `json:"name"`
+	} `json:"tags"`
+}
+
+type rawTagListSlice []rawTagList
+
+type rsLink struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
+type rsLinks []rsLink
+
 type tag struct {
 	Name  string
 	Value string
@@ -93,24 +99,93 @@ type tag struct {
 
 type tags []tag
 
+type Deployment struct {
+	Name  string  `json:"name"`
+	Links rsLinks `json:"links"`
+}
+
+type Deployments []Deployment
+
+type Input tag
+
+type Inputs []Input
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	log.Printf("%s took %s", name, elapsed)
+}
+
 func (c Client) Arrays(withTags ...bool) (arrayList ServerArrays, e error) {
+	var wantTags bool
+	if len(withTags) > 0 && withTags[0] {
+		wantTags = true
+	} else {
+		wantTags = false
+	}
+	var serverArrayHrefs []string
+	deploymentList,err := c.GetDeployments()
+	if err != nil {
+		return arrayList,err
+	}
+	for _, deployment := range deploymentList {
+		withDetail := fmt.Sprintf("%s?%s", deployment.Links.LinkValue("server_arrays"), "view=instance_detail")
+		serverArrayHrefs = append(serverArrayHrefs, withDetail)
+	}
+	ch := make(chan ServerArray)
+	var results ServerArrays
+	var loopGroup sync.WaitGroup
+	go func(arrays chan ServerArray) {
+		for a := range arrays {
+			results = append(results, a)
+		}
+	}(ch)
+	for _, arrayHref := range serverArrayHrefs {
+		loopGroup.Add(1)
+		go func(href string, getTags bool, x *sync.WaitGroup, zzz chan ServerArray) {
+			sa, err := c.getArrays(href, getTags)
+			if err != nil {
+				log.Printf("Could not get arrays from %s - Error: %s", href, err)
+			}
+			//loop through arrays and push then into channel
+			for _, array := range sa {
+				//push here
+				zzz <- array
+			}
+
+			x.Done()
+		}(arrayHref, wantTags, &loopGroup, ch)
+
+	}
+	loopGroup.Wait()
+	close(ch)
+	return results, nil
+}
+
+func (c Client) getArrays(url string, withTags ...bool) (arrayList ServerArrays, e error) {
+	defer timeTrack(time.Now(), url)
 	arrayListRequestParams := RequestParams{
 		method: "GET",
-		url:    "/api/server_arrays?view=instance_detail",
+		url:    url,
 	}
+	//could not find symbol value for msg
 	var data []byte
 	var err error
 	if mockRSCalls() {
 		data = arrayListResponseMock
 	} else {
-		data,err = c.Request(arrayListRequestParams)
+		data, err = c.Request(arrayListRequestParams)
 		if err != nil {
-			return ServerArrays{}, errors.Errorf("encountered error requesting server arrays %s",err)
+			return ServerArrays{}, errors.Errorf("encountered error requesting"+
+				" server arrays to retrieve tags %s", err)
 		}
 	}
 	json.Unmarshal(data, &arrayList)
 
 	if len(withTags) > 0 && withTags[0] {
+		//If deployment contained no arrays we cannot further process things
+		if len(arrayList) == 0 {
+			return ServerArrays{}, nil
+		}
 		arrayList, err = c.PopulateArrayTags(arrayList)
 		if err != nil {
 			return ServerArrays{}, errors.Errorf("encountered error attempting %s", err)
@@ -119,11 +194,85 @@ func (c Client) Arrays(withTags ...bool) (arrayList ServerArrays, e error) {
 	return
 }
 
+func (c Client) ArraysParallel(withTags ...bool) (arrayList ServerArrays, e error) {
+	return c.Arrays(withTags...)
+}
+
+func (c Client) GetDeployments() (Deployments, error) {
+	//get list of deployments in account
+	deploymentListParams := RequestParams{
+		method: "GET",
+		url:    "/api/deployments",
+	}
+	data, err := c.Request(deploymentListParams)
+	var deploymentList Deployments
+	if err != nil {
+		return deploymentList,errors.New("encountered error getting deployment list")
+	}
+	json.Unmarshal(data, &deploymentList)
+	return deploymentList,nil
+}
+
+func (c Client) Array(arrayID string, withTags ...bool) (array ServerArray, e error) {
+	arrayRequestParams := RequestParams{
+		method: "GET",
+		url:    fmt.Sprintf("/api/server_arrays/%s?view=instance_detail", arrayID),
+	}
+
+	data, err := c.Request(arrayRequestParams)
+	if err != nil {
+		return ServerArray{}, errors.Errorf("encountered error requesting server arrays %s", err)
+	}
+	json.Unmarshal(data, &array)
+
+	if len(withTags) > 0 && withTags[0] {
+		arrayList := ServerArrays{array}
+		arrayList, err = c.PopulateArrayTags(arrayList)
+		if err != nil {
+			return ServerArray{}, errors.Errorf("encountered error attempting to get tags %s", err)
+		}
+		array = arrayList[0]
+	}
+	return
+}
+
+func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
+	nextInstance := array.Links.LinkValue("next_instance")
+	inputListRequestParams := RequestParams{
+		method: "GET",
+		url:    fmt.Sprintf("%s/inputs", nextInstance),
+	}
+	data, err := c.Request(inputListRequestParams)
+	if err != nil {
+		return Inputs{}, errors.Errorf("encountered error requesting server array inputs %s", err)
+	}
+	json.Unmarshal(data, &inputList)
+	return
+}
+
+func (c Client) getArrrayInstances(arrayID string) (ServerInstances,error) {
+	instanceListParams := RequestParams{
+		method: "GET",
+		url:    "/api/server_arrays/:server_array_id/current_instances",
+	} //todo, add variable to pass in array id
+    var instances ServerInstances
+	data, err := c.Request(instanceListParams)
+	if err != nil {
+		return instances,errors.Errorf("encountered error requesting server instances for array %s, %s",arrayID,err)
+	}
+	json.Unmarshal(data,&instances)
+	return instances,nil
+}
+
 func (c Client) PopulateArrayTags(arrayList ServerArrays) (ServerArrays, error) {
 	selfHrefFunc := func(a ServerArray) string {
-		return a.Links.linkValue("self")
+		return a.Links.LinkValue("self")
 	}
 	refs := arrayList.collect(selfHrefFunc)
+	//cannot further process
+	if len(refs) == 0 {
+		return arrayList, nil
+	}
 	tags, err := c.getTags(refs)
 	if err != nil {
 		return ServerArrays{}, errors.Errorf("encountered error requesting tags for server arrays %s", err)
@@ -132,6 +281,16 @@ func (c Client) PopulateArrayTags(arrayList ServerArrays) (ServerArrays, error) 
 	return arrayList.associateArrayTags(arrayTags), nil
 }
 
+func (t tags) TagValue(name string) string {
+	for _, x := range t {
+		if x.Name == name {
+			return x.Value
+		}
+	}
+	return "N/A"
+}
+
+//for a given set of HREFs. returns tags
 func (c Client) getTags(refs []string) (rawTagListSlice, error) {
 	var tagList rawTagListSlice
 	var body = make(map[string][]string)
@@ -159,15 +318,6 @@ func (c Client) getTags(refs []string) (rawTagListSlice, error) {
 		return rawTagListSlice{}, errors.Errorf("encountered error unmarshalling tag response %s", err)
 	}
 	return tagList, nil
-}
-
-func (t tags) TagValue(name string) string {
-	for _, x := range t {
-		if x.Name == name {
-			return x.Value
-		}
-	}
-	return "N/A"
 }
 
 //transforms Rightscales obnoxious tag response to a toplevel object
@@ -205,7 +355,7 @@ func extractRSEC2Tag(t string) (key, value string, e error) {
 func (sa ServerArrays) associateArrayTags(tagMap map[string]tags) ServerArrays {
 	var sa2 ServerArrays
 	for _, array := range sa {
-		href := array.Links.linkValue("self")
+		href := array.id()
 		t, ok := tagMap[href]
 		if ok {
 			array.ArrayTags = t
@@ -216,7 +366,17 @@ func (sa ServerArrays) associateArrayTags(tagMap map[string]tags) ServerArrays {
 	return sa2
 }
 
-func (links rsLinks) linkValue(name string) string {
+func (sa ServerArray) ArrayID() (string, error) {
+	stringParts := strings.Split(sa.id(), "/")
+	idString := stringParts[len(stringParts)-1]
+	return idString, nil
+}
+
+func (sa ServerArray) id() string {
+	return sa.Links.LinkValue("self")
+}
+
+func (links rsLinks) LinkValue(name string) string {
 	for _, link := range links {
 		if link.Rel == name {
 			return link.Href
