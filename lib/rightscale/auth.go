@@ -3,14 +3,15 @@ package rightscale
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/pkg/errors"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
-	"github.com/pkg/errors"
 )
 
+// Bearer is a container for Oauth response from authentication endpoint
 type Bearer struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   int    `json:"expires_in"`
@@ -20,8 +21,8 @@ type Bearer struct {
 func getBearerToken(refreshToken string, endPoint string) (string, error) {
 	data := url.Values{"grant_type": {"refresh_token"}, "refresh_token": {refreshToken}}
 	client := http.Client{}
-	url := strings.Join([]string{endPoint, "/api/oauth2"}, "")
-	req, err := http.NewRequest("POST", url, bytes.NewBufferString(data.Encode()))
+	path := strings.Join([]string{endPoint, "/api/oauth2"}, "")
+	req, err := http.NewRequest("POST", path, bytes.NewBufferString(data.Encode()))
 
 	if err != nil {
 		return "", errors.Errorf("an error was encountered while building bearer token request to RS %s", err)
@@ -34,12 +35,15 @@ func getBearerToken(refreshToken string, endPoint string) (string, error) {
 		return "", errors.Errorf("An error was encountered retrieving bearer token from RS %s", err)
 	}
 	defer response.Body.Close()
-	ResponseText, error := ioutil.ReadAll(response.Body)
-	if error != nil {
+	ResponseText, err := ioutil.ReadAll(response.Body)
+	if err != nil {
 		log.Fatalln("An error was encountered reading response data from bearer token request")
 	}
 	result := Bearer{}
-	json.Unmarshal([]byte(ResponseText), &result)
+	err = json.Unmarshal([]byte(ResponseText), &result)
+	if err != nil {
+		return "", errors.Errorf("Could not unmarshal json from oauth call %s", err)
+	}
 	token := strings.Join([]string{"Bearer", result.AccessToken}, " ")
-	return token,nil
+	return token, nil
 }

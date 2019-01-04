@@ -1,13 +1,14 @@
 package sumologic
 
 import (
-	"log"
-	"net/http"
 	"bytes"
-	"time"
 	"compress/gzip"
 	"errors"
+	"log"
+	"net/http"
+	"time"
 )
+
 // GzipThreshold sets the threshold size over which messages
 // are compressed when sent.
 var GzipThreshold = 2 << 16
@@ -18,7 +19,7 @@ type Uploader interface {
 }
 
 type UploaderWithCustomHeaders interface {
-	SendWithHeaders([]byte, string,HeaderSet) error
+	SendWithHeaders([]byte, string, HeaderSet) error
 }
 
 // httpUploader is a reusable object to upload data to a single
@@ -33,7 +34,7 @@ type HeaderSet struct {
 	Headers map[string]string
 }
 
-func (u *httpUploader) setHeaders(h HeaderSet)  {
+func (u *httpUploader) setHeaders(h HeaderSet) {
 	u.HeaderSet = h
 }
 
@@ -122,9 +123,9 @@ func NewUploaderWithHeaders(url string) UploaderWithCustomHeaders {
 //	return nil
 //}
 
-func (u *httpUploader) SendWithHeaders(input []byte,name string,headers HeaderSet) error {
+func (u *httpUploader) SendWithHeaders(input []byte, name string, headers HeaderSet) error {
 	u.setHeaders(headers)
-	return u.Send(input,name)
+	return u.Send(input, name)
 }
 
 func (u *httpUploader) Send(input []byte, name string) (err error) {
@@ -178,7 +179,7 @@ func (u *httpUploader) Send(input []byte, name string) (err error) {
 	}
 
 	for key, value := range u.Headers {
-		req.Header.Set(key,value)
+		req.Header.Set(key, value)
 	}
 
 	resp, err := client.Do(req)
@@ -194,4 +195,3 @@ func (u *httpUploader) Send(input []byte, name string) (err error) {
 
 	return nil
 }
-
