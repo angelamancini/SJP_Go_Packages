@@ -399,6 +399,23 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	return
 }
 
+// ArrayMultiUpdate updates multiple inputs for the given array
+// Inputs are updated for the "next instance" of an array
+func (c Client) ArrayMultiUpdate(array ServerArray, inputList Inputs) (e error) {
+	var body = inputList
+	nextInstance := array.Links.LinkValue("next_instance")
+	updateInputsRequestParams := RequestParams{
+		method: "PUT",
+		url:    fmt.Sprintf("%s/inputs/multi_update", nextInstance),
+		body:   body,
+	}
+	data, err := c.Request(updateInputsRequestParams)
+	if err != nil {
+		return errors.Errorf("encountered an error updating server araray inputs %s", err)
+	}
+	return
+}
+
 // InstanceInputs returns a current list of inputs from a single instance
 // This function is not yet implemented, 😐
 func (c Client) InstanceInputs(instance serverInstance) (Inputs, error) {
