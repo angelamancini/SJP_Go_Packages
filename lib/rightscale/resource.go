@@ -190,22 +190,10 @@ func (c Client) Arrays(withTags ...bool) (arrayList ServerArrays, e error) {
 // boolean parameter which indicates that it should pull in array meta data also
 func (c Client) getArrays(url string, withTags ...bool) (arrayList ServerArrays, e error) {
 	defer timeTrack(time.Now(), url)
-	arrayListRequestParams := RequestParams{
-		method: "GET",
-		url:    url,
-	}
 	//could not find symbol value for msg
 	var data []byte
 	var err error
-	if mockRSCalls() {
-		data = arrayListResponseMock
-	} else {
-		data, err = c.Request(arrayListRequestParams)
-		if err != nil {
-			return ServerArrays{}, errors.Errorf("encountered error requesting"+
-				" server arrays to retrieve tags %s", err)
-		}
-	}
+
 	err = json.Unmarshal(data, &arrayList)
 	if err != nil {
 		return nil, errors.Errorf("could not unmarshal json from get array api call %s", err)
@@ -409,7 +397,7 @@ func (c Client) ArrayMultiUpdate(array ServerArray, inputList Inputs) (e error) 
 		url:    fmt.Sprintf("%s/inputs/multi_update", nextInstance),
 		body:   body,
 	}
-	data, err := c.Request(updateInputsRequestParams)
+	_, err := c.Request(updateInputsRequestParams)
 	if err != nil {
 		return errors.Errorf("encountered an error updating server araray inputs %s", err)
 	}
@@ -488,14 +476,6 @@ func (c Client) getTags(refs []string) (rawTagListSlice, error) {
 	var data []byte
 	var err error
 
-	if mockRSCalls() {
-		data = tagListResponseMock
-	} else {
-		data, err = c.Request(tagRequestParams)
-		if err != nil {
-			return rawTagListSlice{}, errors.Errorf("encountered error requesting server array tags %s", err)
-		}
-	}
 	err = json.Unmarshal(data, &tagList)
 	if err != nil {
 		return rawTagListSlice{}, errors.Errorf("encountered error attempting to unmarshal tag response %s", err)
