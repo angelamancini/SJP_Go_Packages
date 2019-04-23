@@ -402,7 +402,6 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 // ArrayInputUpdate updates one input for the given array
 // Inputs are updated for the "next instance" of an array
 func (c Client) ArrayInputUpdate(array ServerArray, input Input) (e error) {
-	fmt.Printf("\n\nDEBUG INPUT: %+v\n\n", input)
 	newInput := map[string]string{}
 	newInput[input.Name] = input.Value
 	var body = map[string]map[string]string{}
@@ -417,7 +416,6 @@ func (c Client) ArrayInputUpdate(array ServerArray, input Input) (e error) {
 	if err != nil {
 		return errors.Errorf("encountered an error updating server araray inputs %s", err)
 	}
-	fmt.Printf("\n\nDEBUG: %+v\n\n", updateInputsRequestParams)
 	return
 }
 
