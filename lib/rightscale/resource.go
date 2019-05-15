@@ -122,7 +122,11 @@ type Deployment struct {
 type Deployments []Deployment
 
 // Input Represents a single name/value pair
-type Input tag
+type Input struct {
+	Name  string `json:"name"`
+	Type  string `json:"type"`
+	Value string `json:"value"`
+}
 
 // Inputs represents a slice of Input which represents a single name/value pair
 type Inputs []Input
@@ -130,6 +134,16 @@ type Inputs []Input
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %s", name, elapsed)
+}
+
+// splitValue returns two strings, this is to separate the input type from the input value.
+func splitValue(input string) (inputType string, inputValue string) {
+	valParts := strings.Split(input, ":")
+	if len(valParts) >= 2 {
+		inputType = valParts[0]
+		inputValue = strings.Join(valParts[1:], ":")
+	}
+	return inputType, inputValue
 }
 
 // Arrays returns a list of arrays for a given Rightscale Account
@@ -395,6 +409,12 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	err = json.Unmarshal(data, &inputList)
 	if err != nil {
 		return nil, errors.Errorf("could not unmarshal json from  array inputs api call %s", err)
+	}
+	inputs := Inputs{}
+	for _, s := range inputs {
+		iType, iValue := splitValue(s.Value)
+		detail := Input{Name: s.Name, Type: iType, Value: iValue}
+		inputs = append(inputs, detail)
 	}
 	return
 }
