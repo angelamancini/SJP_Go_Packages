@@ -413,6 +413,7 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	inputs := Inputs{}
 	for _, s := range inputs {
 		iType, iValue := splitValue(s.Value)
+		fmt.Printf("DEBUG: type: %s | value: %s", iType, iValue)
 		detail := Input{Name: s.Name, Type: iType, Value: iValue}
 		inputs = append(inputs, detail)
 	}
