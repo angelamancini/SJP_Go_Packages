@@ -136,16 +136,6 @@ func timeTrack(start time.Time, name string) {
 	log.Printf("%s took %s", name, elapsed)
 }
 
-// splitValue returns two strings, this is to separate the input type from the input value.
-func splitValue(input string) (inputType string, inputValue string) {
-	valParts := strings.Split(input, ":")
-	if len(valParts) >= 2 {
-		inputType = valParts[0]
-		inputValue = strings.Join(valParts[1:], ":")
-	}
-	return inputType, inputValue
-}
-
 // Arrays returns a list of arrays for a given Rightscale Account
 // The Arrays function accepts a single optional boolean parameter which instructs
 // it to also retrieve tag data for the given result set. getting tags for the full
@@ -412,9 +402,11 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	}
 	inputs := Inputs{}
 	for _, s := range inputs {
-		iType, iValue := splitValue(s.Value)
-		fmt.Printf("DEBUG: type: %s | value: %s", iType, iValue)
-		detail := Input{Name: s.Name, Type: iType, Value: iValue}
+		valParts := strings.Split(s.Value, ":")
+		inputType := valParts[0]
+		inputValue := strings.Join(valParts[1:], ":")
+
+		detail := Input{Name: s.Name, Type: inputType, Value: inputValue}
 		inputs = append(inputs, detail)
 	}
 	return
