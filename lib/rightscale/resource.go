@@ -404,8 +404,8 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	for _, s := range inputs {
 		valParts := strings.Split(s.Value, ":")
 		if len(valParts) >= 2 {
-			inputType = valParts[0]
-			inputValue = strings.Join(valParts[1:], ":")
+			inputType := valParts[0]
+			inputValue := strings.Join(valParts[1:], ":")
 			detail := Input{Name: s.Name, Type: inputType, Value: inputValue}
 			inputs = append(inputs, detail)
 		} else {
