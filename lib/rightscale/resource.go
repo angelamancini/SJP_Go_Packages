@@ -123,9 +123,9 @@ type Deployments []Deployment
 
 // Input Represents a single name/value pair
 type Input struct {
-	Name  string `json:"name"`
-	Type  string `json:"type"`
-	Value string `json:"value"`
+	Name  string `json:name`
+	Type  string `json:type`
+	Value string `json:value`
 }
 
 // Inputs represents a slice of Input which represents a single name/value pair
@@ -403,6 +403,7 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	inputs := Inputs{}
 	for _, s := range inputs {
 		valParts := strings.Split(s.Value, ":")
+		fmt.Printf("DEBUG: %s", valParts)
 		inputType := valParts[0]
 		inputValue := strings.Join(valParts[1:], ":")
 
