@@ -383,6 +383,15 @@ func (c Client) TerminateInstances(instanceHrefs []string) error {
 	return nil
 }
 
+func splitValue(input string) (inputType string, inputValue string) {
+	valParts := strings.Split(input, ":")
+	if len(valParts) >= 2 {
+		inputType = valParts[0]
+		inputValue = strings.Join(valParts[1:], ":")
+	}
+	return inputType, inputValue
+}
+
 // ArrayInputs retrieves a list of Inputs from a given array for the "next instance"
 // This input set does not represent the inputs for currently running array instances
 // if inputs from currently running array instances are needed, use the InstanceInputs function
@@ -402,14 +411,12 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	}
 	inputs := Inputs{}
 	for _, s := range inputs {
-		valParts := strings.Split(s.Value, ":")
-		inputType := valParts[0]
-		inputValue := strings.Join(valParts[1:], ":")
+
+		inputType, inputValue := splitValue(s.Value)
 
 		detail := Input{Name: s.Name, Type: inputType, Value: inputValue}
 		inputs = append(inputs, detail)
 	}
-	fmt.Printf("DEBUG: %+v", inputs)
 	return
 }
 
