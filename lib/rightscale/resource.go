@@ -124,7 +124,7 @@ type Deployments []Deployment
 // Input Represents a single name/value pair
 type Input struct {
 	Name  string `json:name`
-	Type  string `json:type`
+	Kind  string `json:kind`
 	Value string `json:value`
 }
 
@@ -387,6 +387,7 @@ func (c Client) TerminateInstances(instanceHrefs []string) error {
 // This input set does not represent the inputs for currently running array instances
 // if inputs from currently running array instances are needed, use the InstanceInputs function
 func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
+	fmt.Println("ARRAY INPUTS FUNCTION")
 	nextInstance := array.Links.LinkValue("next_instance")
 	inputListRequestParams := RequestParams{
 		method: "GET",
@@ -400,16 +401,11 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	if err != nil {
 		return nil, errors.Errorf("could not unmarshal json from  array inputs api call %s", err)
 	}
-	inputs := Inputs{}
-	for _, s := range inputs {
-		valParts := strings.Split(s.Value, ":")
-		if len(valParts) >= 2 {
-			inputType := valParts[0]
-			inputValue := strings.Join(valParts[1:], ":")
-			detail := Input{Name: s.Name, Type: inputType, Value: inputValue}
-			inputs = append(inputs, detail)
-		} else {
-			fmt.Errorf("not a valid input value and type: %+v", s.Value)
+	for i, s := range inputList {
+		raw := strings.Split(s.Value, ":")
+		if len(raw) >= 1 {
+			inputList[i].Kind = raw[0]
+			inputList[i].Value = strings.Join(raw[1:], ":")
 		}
 	}
 	return
@@ -430,7 +426,7 @@ func (c Client) ArrayInputUpdate(array ServerArray, input Input) (e error) {
 	}
 	_, err := c.Request(updateInputsRequestParams)
 	if err != nil {
-		return errors.Errorf("encountered an error updating server araray inputs %s", err)
+		return errors.Errorf("encountered an error updating server array inputs %s", err)
 	}
 	return
 }
