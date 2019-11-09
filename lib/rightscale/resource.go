@@ -47,7 +47,7 @@ type ServerArray struct {
 	InstancesCount int            `json:"instances_count"`
 	Links          rsLinks        `json:"links"`
 	Name           string         `json:"name"`
-	NextInstance   serverInstance `json:"next_instance"`
+	NextInstance   ServerInstance `json:"next_instance"`
 	State          string         `json:"state"`
 	ArrayTags      tags
 }
@@ -55,8 +55,8 @@ type ServerArray struct {
 // ServerArrays represent a collection of ServerArray resources
 type ServerArrays []ServerArray
 
-// serverInstance represents a single server instance
-type serverInstance struct {
+// ServerInstance represents a single server instance
+type ServerInstance struct {
 	Actions []struct {
 		Rel string `json:"rel"`
 	} `json:"actions"`
@@ -81,7 +81,7 @@ type serverInstance struct {
 }
 
 // ServerInstances represents a collection of servicerInstance reosurces
-type ServerInstances []serverInstance
+type ServerInstances []ServerInstance
 
 // rawTagList Represents collection of resource tags in their raw form prior to being parsed as name/value pairs
 type rawTagList struct {
@@ -123,9 +123,9 @@ type Deployments []Deployment
 
 // Input Represents a single name/value pair
 type Input struct {
-	Name  string `json:name`
-	Kind  string `json:kind`
-	Value string `json:value`
+	Name  string `json:"name"`
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
 }
 
 // Inputs represents a slice of Input which represents a single name/value pair
@@ -312,7 +312,7 @@ func (c Client) LaunchArrayInstances(array ServerArray, count int) error {
 // This function factors instance age into the decision making process with a bias to killing older instances first
 // Errors returned by this function are the ones bubbled up from the TerminateInstances
 func (c Client) DownscaleArrayInstances(array ServerArray, count int) error {
-	var createdAtDateMap = make(map[int]serverInstance) //this will stop working one day as unix timestamp will overflow 32 bits
+	var createdAtDateMap = make(map[int]ServerInstance) //this will stop working one day as unix timestamp will overflow 32 bits
 	var createdAtDateSlice []int
 	aid, _ := array.ArrayID()
 	instances, err := c.GetArrayInstances(aid)
@@ -433,7 +433,7 @@ func (c Client) ArrayInputUpdate(array ServerArray, input Input) (e error) {
 
 // InstanceInputs returns a current list of inputs from a single instance
 // This function is not yet implemented, 😐
-func (c Client) InstanceInputs(instance serverInstance) (Inputs, error) {
+func (c Client) InstanceInputs(instance ServerInstance) (Inputs, error) {
 	return nil, errors.New("NOT YET IMPLEMENTED")
 }
 
