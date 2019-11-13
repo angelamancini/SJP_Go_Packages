@@ -11,7 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-
+	//"regexp"
 	"github.com/pkg/errors"
 )
 
@@ -57,6 +57,7 @@ type ServerArrays []ServerArray
 
 // ServerInstance represents a single server instance
 type ServerInstance struct {
+	Href    string
 	Actions []struct {
 		Rel string `json:"rel"`
 	} `json:"actions"`
@@ -131,6 +132,11 @@ type Input struct {
 // Inputs represents a slice of Input which represents a single name/value pair
 type Inputs []Input
 
+type ServerTemplate struct {
+	Name     string `json:"name"`
+	Revision int `json:"revision"`
+}
+
 func timeTrack(start time.Time, name string) {
 	elapsed := time.Since(start)
 	log.Printf("%s took %s", name, elapsed)
@@ -164,6 +170,7 @@ func (c Client) Arrays(withTags ...bool) (arrayList ServerArrays, e error) {
 	go func(arrays chan ServerArray) {
 		for a := range arrays {
 			results = append(results, a)
+
 		}
 	}(ch)
 	for _, arrayHref := range serverArrayHrefs {
@@ -458,6 +465,41 @@ func (c Client) GetArrayInstances(arrayID string) (ServerInstances, error) {
 	return instances, nil
 }
 
+// Instance retrieves a single INSTANCE by its cloud ID and numeric ID.
+// If you have an Instance's href split by / and take the last part.
+// that is the ID. todo, validate format of string provided to ensure href is not passed in
+// Errors returned by this function will be from failed network calls or parsing the returned Json
+func (c Client) Instance(cloudID string, instanceID string) (instance ServerInstance, err error) {
+	instanceRequestParams := RequestParams{
+		method: "GET",
+		url:    fmt.Sprintf("/api/clouds/%s/instances/%s", cloudID, instanceID),
+	}
+
+	data, err := c.Request(instanceRequestParams)
+	if err != nil {
+		return ServerInstance{}, errors.Errorf("encountered error requesting server arrays %s", err)
+	}
+	err = json.Unmarshal(data, &instance)
+	if err != nil {
+		return ServerInstance{}, errors.WithMessage(err, "could not unmarshal Array response")
+	}
+	instance.Href = instance.id()
+
+	//if len(withTags) > 0 && withTags[0] {
+	//	arrayList := ServerInstance{array}
+	//	arrayList, err = c.PopulateArrayTags(arrayList)
+	//	if err != nil {
+	//		return ServerInstance{}, errors.Errorf("encountered error attempting to get tags %s", err)
+	//	}
+	//	array = arrayList[0]
+	//}
+	return
+}
+
+func (si ServerInstance) id() string {
+	return si.Links.LinkValue("self")
+}
+
 // PopulateArrayTags take a list of Arrays and supplements their data with their tag information
 // The return list represents the full list of arrays passed in
 func (c Client) PopulateArrayTags(arrayList ServerArrays) (ServerArrays, error) {
@@ -503,14 +545,6 @@ func (c Client) getTags(refs []string) (rawTagListSlice, error) {
 	var data []byte
 	var err error
 
-	// if mockRSCalls() {
-	// 	data = tagListResponseMock
-	// } else {
-	// 	data, err = c.Request(tagRequestParams)
-	// 	if err != nil {
-	// 		return rawTagListSlice{}, errors.Errorf("encountered error requesting server array tags %s", err)
-	// 	}
-	// }
 	err = json.Unmarshal(data, &tagList)
 	if err != nil {
 		return rawTagListSlice{}, errors.Errorf("encountered error attempting to unmarshal tag response %s", err)
@@ -580,6 +614,28 @@ func (sa ServerArray) ArrayID() (string, error) {
 // if only the numeric portion of the href is desired use the ArrayID function
 func (sa ServerArray) id() string {
 	return sa.Links.LinkValue("self")
+}
+
+func (c Client) ArrayTemplate(arrayID string) (template ServerTemplate, e error) {
+	sa, err := c.Array(arrayID)
+	if err != nil {
+		return ServerTemplate{}, errors.Errorf("encountered error requesting server array %s", err)
+	}
+	templateHref := sa.NextInstance.Links.LinkValue("server_template")
+	templateRequestParams := RequestParams{
+		method: "GET",
+		url:    templateHref,
+	}
+	data, err := c.Request(templateRequestParams)
+	if err != nil {
+		return ServerTemplate{}, errors.Errorf("encountered error requesting server template %s", err)
+	}
+	err = json.Unmarshal(data, &template)
+	if err != nil {
+		return ServerTemplate{}, errors.WithMessage(err, "could not unmarshal Server Template response")
+	}
+
+	return
 }
 
 // LinkValues returns the value of a given link name,
