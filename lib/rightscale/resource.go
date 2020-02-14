@@ -202,8 +202,8 @@ func (c Client) Arrays(withTags ...bool) (arrayList ServerArrays, e error) {
 func (c Client) getArrays(url string, withTags ...bool) (arrayList ServerArrays, e error) {
 	defer timeTrack(time.Now(), url)
 	// arrayListRequestParams := RequestParams{
-	// 	method: "GET",
-	// 	url:    url,
+	// 	Method: "GET",
+	// 	Url:    url,
 	// }
 	//could not find symbol value for msg
 	var data []byte
@@ -245,8 +245,8 @@ func (c Client) ArraysParallel(withTags ...bool) (arrayList ServerArrays, e erro
 func (c Client) GetDeployments() (Deployments, error) {
 	//get list of deployments in account
 	deploymentListParams := RequestParams{
-		method: "GET",
-		url:    "/api/deployments",
+		Method: "GET",
+		Url:    "/api/deployments",
 	}
 	data, err := c.Request(deploymentListParams)
 	var deploymentList Deployments
@@ -266,8 +266,8 @@ func (c Client) GetDeployments() (Deployments, error) {
 // Errors returned by this function will be from failed network calls or parsing the returned Json
 func (c Client) Array(arrayID string, withTags ...bool) (array ServerArray, e error) {
 	arrayRequestParams := RequestParams{
-		method: "GET",
-		url:    fmt.Sprintf("/api/server_arrays/%s?view=instance_detail", arrayID),
+		Method: "GET",
+		Url:    fmt.Sprintf("/api/server_arrays/%s?view=instance_detail", arrayID),
 	}
 
 	data, err := c.Request(arrayRequestParams)
@@ -397,8 +397,8 @@ func (c Client) ArrayInputs(array ServerArray) (inputList Inputs, e error) {
 	fmt.Println("ARRAY INPUTS FUNCTION")
 	nextInstance := array.Links.LinkValue("next_instance")
 	inputListRequestParams := RequestParams{
-		method: "GET",
-		url:    fmt.Sprintf("%s/inputs", nextInstance),
+		Method: "GET",
+		Url:    fmt.Sprintf("%s/inputs", nextInstance),
 	}
 	data, err := c.Request(inputListRequestParams)
 	if err != nil {
@@ -427,9 +427,9 @@ func (c Client) ArrayInputUpdate(array ServerArray, input Input) (e error) {
 	body["inputs"] = newInput
 	nextInstance := array.Links.LinkValue("next_instance")
 	updateInputsRequestParams := RequestParams{
-		method: "PUT",
-		url:    fmt.Sprintf("%s/inputs/multi_update", nextInstance),
-		body:   body,
+		Method: "PUT",
+		Url:    fmt.Sprintf("%s/inputs/multi_update", nextInstance),
+		Body:   body,
 	}
 	_, err := c.Request(updateInputsRequestParams)
 	if err != nil {
@@ -450,8 +450,8 @@ func (c Client) InstanceInputs(instance ServerInstance) (Inputs, error) {
 func (c Client) GetArrayInstances(arrayID string) (ServerInstances, error) {
 	//todo, validate id format
 	instanceListParams := RequestParams{
-		method: "GET",
-		url:    fmt.Sprintf("/api/server_arrays/%s/current_instances", arrayID),
+		Method: "GET",
+		Url:    fmt.Sprintf("/api/server_arrays/%s/current_instances", arrayID),
 	}
 	var instances ServerInstances
 	data, err := c.Request(instanceListParams)
@@ -471,8 +471,8 @@ func (c Client) GetArrayInstances(arrayID string) (ServerInstances, error) {
 // Errors returned by this function will be from failed network calls or parsing the returned Json
 func (c Client) Instance(cloudID string, instanceID string) (instance ServerInstance, err error) {
 	instanceRequestParams := RequestParams{
-		method: "GET",
-		url:    fmt.Sprintf("/api/clouds/%s/instances/%s", cloudID, instanceID),
+		Method: "GET",
+		Url:    fmt.Sprintf("/api/clouds/%s/instances/%s", cloudID, instanceID),
 	}
 
 	data, err := c.Request(instanceRequestParams)
@@ -536,9 +536,9 @@ func (c Client) getTags(refs []string) (rawTagListSlice, error) {
 	var body = make(map[string][]string)
 	body["resource_hrefs"] = refs
 	tagRequestParams := RequestParams{
-		method: "POST",
-		url:    "/api/tags/by_resource",
-		body:   body,
+		Method: "POST",
+		Url:    "/api/tags/by_resource",
+		Body:   body,
 	}
 	_ = tagRequestParams
 
@@ -623,8 +623,8 @@ func (c Client) ArrayTemplate(arrayID string) (template ServerTemplate, e error)
 	}
 	templateHref := sa.NextInstance.Links.LinkValue("server_template")
 	templateRequestParams := RequestParams{
-		method: "GET",
-		url:    templateHref,
+		Method: "GET",
+		Url:    templateHref,
 	}
 	data, err := c.Request(templateRequestParams)
 	if err != nil {

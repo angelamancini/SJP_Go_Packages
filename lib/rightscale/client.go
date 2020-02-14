@@ -11,9 +11,9 @@ import (
 
 // RequestParams represents the data needed to make a web request to Rightscale
 type RequestParams struct {
-	method string
-	url    string
-	body   interface{}
+	Method string
+	Url    string
+	Body   interface{}
 }
 
 // Client struct holds needed information to communicate with Rightscale
@@ -40,11 +40,11 @@ func New(refreshToken string, endpoint string) (c Client, e error) {
 // Request takes a prebuilt param object and executes the needed API call as provide by the RequestParams struct
 func (c Client) Request(RequestParams RequestParams) ([]byte, error) {
 	client := http.Client{}
-	url := strings.Join([]string{c.EndPoint, RequestParams.url}, "")
-	req, err := http.NewRequest(RequestParams.method, url, nil)
-	if RequestParams.body != nil {
-		j, _ := json.Marshal(RequestParams.body)
-		req, err = http.NewRequest(RequestParams.method, url, strings.NewReader(string(j)))
+	url := strings.Join([]string{c.EndPoint, RequestParams.Url}, "")
+	req, err := http.NewRequest(RequestParams.Method, url, nil)
+	if RequestParams.Body != nil {
+		j, _ := json.Marshal(RequestParams.Body)
+		req, err = http.NewRequest(RequestParams.Method, url, strings.NewReader(string(j)))
 		if err != nil {
 			return []byte{}, errors.Errorf("an error was encountered while building request with body %s", err)
 		}
@@ -75,12 +75,12 @@ func (c Client) Request(RequestParams RequestParams) ([]byte, error) {
 // this function is different from Request in that it returns the full http. Response object for further processing
 func (c Client) RequestDetailed(RequestParams RequestParams) (*http.Response, error) {
 	client := http.Client{}
-	url := strings.Join([]string{c.EndPoint, RequestParams.url}, "")
+	url := strings.Join([]string{c.EndPoint, RequestParams.Url}, "")
 	log.Println("Request URL:", url)
-	req, err := http.NewRequest(RequestParams.method, url, nil)
-	if RequestParams.body != nil {
-		j, _ := json.Marshal(RequestParams.body)
-		req, err = http.NewRequest(RequestParams.method, url, strings.NewReader(string(j)))
+	req, err := http.NewRequest(RequestParams.Method, url, nil)
+	if RequestParams.Body != nil {
+		j, _ := json.Marshal(RequestParams.Body)
+		req, err = http.NewRequest(RequestParams.Method, url, strings.NewReader(string(j)))
 		if err != nil {
 			return nil, errors.Errorf("an error was encountered while building request with body %s", err)
 		}
